@@ -1,0 +1,30 @@
+## ==========================================
+## application-local.yml
+## 本地环境专用配置（密码、密钥、敏感信息）
+## 请加入 .gitignore 防止提交到代码仓库！
+## ==========================================
+#
+## MySQL 密码
+#MYSQL_PASSWORD: 123456
+#
+## Redis 密码（没有就留空）
+#REDIS_PASSWORD: ""
+#
+## Elasticsearch 账号密码（没有就留空）
+#ES_USERNAME: ""
+#ES_PASSWORD: ""
+#
+## DeepSeek AI 密钥
+#DEEPSEEK_API_KEY: "sk-9aa249e0d40e4e8a982d3c99885de082"
+#
+## 邮件发送配置
+#MAIL_HOST: smtp.qq.com
+#MAIL_USERNAME: "3943504208@qq.com"
+#MAIL_PASSWORD: "vgweonodkvlrcffi"
+#
+## 阿里云 OSS 对象存储
+#OSS_ENDPOINT: "oss-cn-hangzhou.aliyuncs.com"
+#OSS_ACCESS_KEY_ID: "LTAI5tR8aLeadSecYKfgjFEQ"
+#OSS_ACCESS_KEY_SECRET: "OxToXi2GYCUvxsemsXAkzBMhNSgMOi"
+#OSS_BUCKET: "zhiguang121"
+#OSS_PUBLIC_DOMAIN: ""

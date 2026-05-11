@@ -1,0 +1,453 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zhiguang
+
+  # ==================== 数据源（MySQL） ====================
+  #&characterEncoding=utf-8
+  datasource:
+    url: jdbc:mysql://192.168.100.129:3306/zhiguang?useUnicode=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 30000
+
+  # ==================== Redis ====================
+  data:
+    redis:
+      host: 192.168.100.129
+      port: 6379
+      password: ""
+      database: 0
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 3000ms
+      timeout: 5000ms
+
+  # ==================== Elasticsearch ====================
+  elasticsearch:
+    uris: http://192.168.100.129:9200
+    username: ""
+    password: ""
+
+  # ==================== AI 配置（正确！无报错！） ====================
+  ai:
+    # ==================== OpenAI 国内代理（向量用，你给的key） ====================
+    openai:
+      api-key: sk-of-LjVpvRKlmOjOsArBaoSkqXIbrXwRsFtERimRkFCADuJoeIXkhTSjciwzhMAxSjwG
+      base-url: https://api.ofox.ai/v1
+      embedding:
+        options:
+          model: text-embedding-ada-002
+
+    # ==================== DeepSeek 对话（保留，正常用） ====================
+    deepseek:
+      api-key: "sk-9aa249e0d40e4e8a982d3c99885de082"
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-chat
+
+    # ==================== ES 向量库 ====================
+    vectorstore:
+      elasticsearch:
+        index-name: zhiguang-ai-index
+
+  # ==================== Kafka ====================
+  kafka:
+    bootstrap-servers: 192.168.100.129:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: 1
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: zhiguang-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 500
+    listener:
+      ack-mode: manual
+      concurrency: 3
+
+  # ==================== 邮件 ====================
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: "3943504208@qq.com"
+    password: "vgweonodkvlrcffi"
+    protocol: smtps
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: true
+            required: true
+
+  # ==================== 文件上传 ====================
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+# ==================== MyBatis ====================
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.tongji
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# ==================== 认证模块 ====================
+auth:
+  jwt:
+    issuer: zhiguang
+    access-token-ttl: 15m
+    refresh-token-ttl: 7d
+    key-id: zhiguang-key
+    private-key: classpath:keys/private.pem
+    public-key: classpath:keys/public.pem
+  verification:
+    code-length: 6
+    ttl: 5m
+    max-attempts: 5
+    send-interval: 60s
+    daily-limit: 10
+  password:
+    bcrypt-strength: 12
+    min-length: 8
+
+# ==================== 对象存储 OSS ====================
+oss:
+  endpoint: "oss-cn-hangzhou.aliyuncs.com"
+  access-key-id: "LTAI5tR8aLeadSecYKfgjFEQ"
+  access-key-secret: "OxToXi2GYCUvxsemsXAkzBMhNSgMOi"
+  bucket: "zhiguang121"
+  public-domain: ""
+  folder: avatars
+
+# ==================== 其他配置（不变） ====================
+cache:
+  l2:
+    public-cfg:
+      ttl-seconds: 15
+      max-size: 1000
+    mine-cfg:
+      ttl-seconds: 10
+      max-size: 1000
+    detail-cfg:
+      ttl-seconds: 30
+      max-size: 5000
+  hotkey:
+    window-seconds: 60
+    segment-seconds: 10
+    level-low: 50
+    level-medium: 200
+    level-high: 500
+    extend-low-seconds: 20
+    extend-medium-seconds: 60
+    extend-high-seconds: 120
+
+canal:
+  enabled: false
+  host: 192.168.100.129
+  port: 11111
+  destination: example
+  username: root
+  password: 123456
+  filter: zhiguang\\.outbox
+  batchSize: 1000
+  intervalMs: 500
+
+counter:
+  rebuild:
+    lock:
+      ttl-ms: 5000
+      watchdog-ms: 30000
+    rate:
+      permits: 3
+      window-seconds: 10
+    backoff:
+      base-ms: 500
+      max-ms: 30000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.tongji: DEBUG
+    org.springframework.security: INFO
+    org.springframework.ai: DEBUG
+    org.apache.kafka: WARN
+    org.elasticsearch: WARN
+#server:
+#  port: 8080
+#
+#spring:
+#  config:
+#    activate:
+#      on-profile: local
+#  application:
+#    name: zhiguang
+#
+#  # ==================== 数据源（MySQL 容器名：mysql8） ====================
+#  datasource:
+#    # mysql8 → 虚拟机IP
+#    url: jdbc:mysql://192.168.100.129:3306/zhiguang?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+#    username: root
+#    password: 123456
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    hikari:
+#      minimum-idle: 5
+#      maximum-pool-size: 20
+#      idle-timeout: 300000
+#      max-lifetime: 1200000
+#      connection-timeout: 30000
+#
+#  # ==================== Redis ====================
+#  data:
+#    redis:
+#      # redis → 虚拟机IP
+#      host: 192.168.100.129
+#      port: 6379
+#      password: ${REDIS_PASSWORD:}
+#      database: 0
+#      lettuce:
+#        pool:
+#          max-active: 16
+#          max-idle: 8
+#          min-idle: 4
+#          max-wait: 3000ms
+#      timeout: 5000ms
+#
+#  # ==================== Elasticsearch ====================
+#  elasticsearch:
+#    uris:
+#      # elasticsearch → 虚拟机IP
+#      - http://192.168.100.129:9200
+#    username: ${ES_USERNAME:}
+#    password: ${ES_PASSWORD:}
+#
+#  # ==================== AI / DeepSeek ====================
+##  ai:
+##    deepseek:
+##      api-key: ${DEEPSEEK_API_KEY:}
+##      base-url: https://api.deepseek.com
+##      chat:
+##        options:
+##          model: deepseek-chat
+##      embedding:
+##        options:
+##          model: deepseek-embedding
+##    vectorstore:
+##      elasticsearch:
+##        index-name: zhiguang-ai-index
+#
+#    ai:
+#      # ---------------------
+#      # DeepSeek 对话（你原来的保留）
+#      # ---------------------
+#      deepseek:
+#        api-key: ${DEEPSEEK_API_KEY:}
+#        base-url: https://api.deepseek.com
+#        chat:
+#          options:
+#            model: deepseek-chat
+#
+#      # ---------------------
+#      # 向量存储 + 强制使用 ONNX 开源模型（关键！）
+#      # ---------------------
+#      vectorstore:
+#        elasticsearch:
+#          index-name: zhiguang-ai-index
+#
+#      # ---------------------
+#      # 强制使用 ONNX 向量模型（不需要任何API KEY）
+#      # ---------------------
+#      embedding:
+#        onnx:
+#          enabled: true
+#          model: all-minilm-l6-v2
+#
+#      # ---------------------
+#      # 必须加这个：关闭 OpenAI 自动装配（核心修复）
+#      # ---------------------
+#      autoconfigure:
+#        openai:
+#          enabled: false
+#
+#  # ==================== Kafka ====================
+#  kafka:
+#    # kafka → 虚拟机IP
+#    bootstrap-servers: 192.168.100.129:9092
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      acks: 1
+#      retries: 3
+#      batch-size: 16384
+#      linger-ms: 5
+#      buffer-memory: 33554432
+#    consumer:
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      group-id: zhiguang-group
+#      auto-offset-reset: earliest
+#      enable-auto-commit: false
+#      max-poll-records: 500
+#    listener:
+#      ack-mode: manual
+#      concurrency: 3
+#
+#  # ==================== 邮件 ====================
+#  mail:
+#    host: ${MAIL_HOST:smtp.example.com}
+#    port: 465
+#    username: ${MAIL_USERNAME:}
+#    password: ${MAIL_PASSWORD:}
+#    protocol: smtps
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          ssl:
+#            enable: true
+#          starttls:
+#            enable: true
+#            required: true
+#
+#  # ==================== 文件上传 ====================
+#  servlet:
+#    multipart:
+#      max-file-size: 10MB
+#      max-request-size: 20MB
+#
+## ==================== MyBatis ====================
+#mybatis:
+#  mapper-locations: classpath:mapper/*.xml
+#  type-aliases-package: com.tongji
+#  configuration:
+#    map-underscore-to-camel-case: true
+#    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+#
+## ==================== 认证模块 ====================
+#auth:
+#  jwt:
+#    issuer: zhiguang
+#    access-token-ttl: 15m
+#    refresh-token-ttl: 7d
+#    key-id: zhiguang-key
+#    private-key: classpath:keys/private.pem
+#    public-key: classpath:keys/public.pem
+#  verification:
+#    code-length: 6
+#    ttl: 5m
+#    max-attempts: 5
+#    send-interval: 60s
+#    daily-limit: 10
+#  password:
+#    bcrypt-strength: 12
+#    min-length: 8
+#
+## ==================== 对象存储 ====================
+#oss:
+#  endpoint: ${OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
+#  access-key-id: ${OSS_ACCESS_KEY_ID:}
+#  access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+#  bucket: ${OSS_BUCKET:zhiguang}
+#  public-domain: ${OSS_PUBLIC_DOMAIN:}
+#  folder: avatars
+#
+## ==================== 本地缓存 ====================
+#cache:
+#  l2:
+#    public-cfg:
+#      ttl-seconds: 15
+#      max-size: 1000
+#    mine-cfg:
+#      ttl-seconds: 10
+#      max-size: 1000
+#    detail-cfg:
+#      ttl-seconds: 30
+#      max-size: 5000
+#  hotkey:
+#    window-seconds: 60
+#    segment-seconds: 10
+#    level-low: 50
+#    level-medium: 200
+#    level-high: 500
+#    extend-low-seconds: 20
+#    extend-medium-seconds: 60
+#    extend-high-seconds: 120
+#
+## ==================== Canal ====================
+#canal:
+#  enabled: false
+#  # canal → 虚拟机IP
+#  host: 192.168.100.129
+#  port: 11111
+#  destination: example
+#  username: canal
+#  password: canal
+#  filter: zhiguang\\.outbox
+#  batch-size: 1000
+#  interval-ms: 500
+#
+## ==================== 计数模块 ====================
+#counter:
+#  rebuild:
+#    lock:
+#      ttl-ms: 5000
+#      watchdog-ms: 30000
+#    rate:
+#      permits: 3
+#      window-seconds: 10
+#    backoff:
+#      base-ms: 500
+#      max-ms: 30000
+#
+## ==================== 健康检查 ====================
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info
+#  endpoint:
+#    health:
+#      show-details: when-authorized
+#
+## ==================== 日志 ====================
+#logging:
+#  level:
+#    root: INFO
+#    com.tongji: DEBUG
+#    org.springframework.security: INFO
+#    org.springframework.ai: DEBUG
+#    org.apache.kafka: WARN
+#    org.elasticsearch: WARN
