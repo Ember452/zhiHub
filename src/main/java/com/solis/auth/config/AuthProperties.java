@@ -18,8 +18,6 @@ import java.time.Duration;
  * - Password：密码策略与加密强度配置。
  */
 @Data
-//TODO 注意这个配置，看看能不能需不需要
-@Configuration
 @ConfigurationProperties(prefix = "auth")
 public class AuthProperties {
 

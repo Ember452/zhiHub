@@ -30,7 +30,9 @@ public class HotKeyDetector {
 
     /** 缓存配置（包含窗口/分段参数、等级阈值、扩展秒数） */
     private final CacheProperties properties;
-    /** 每个 key 的滑窗分段计数数组，长度为 segments */
+    /** 每个 key 的滑窗分段计数数组，长度为 segments
+     * 里面存储的商品详情和个人信息等，key和Redis一样
+     * */
     private final Map<String, int[]> counters = new ConcurrentHashMap<>();
     /** 当前活跃分段索引（原子维护） */
     private final AtomicInteger current = new AtomicInteger(0);
@@ -64,6 +66,7 @@ public class HotKeyDetector {
      * @return 热度值
      */
     public int heat(String key) {
+        //得到当前key的计数数组，如果没有则返回0
         int[] arr = counters.get(key);
         if (arr == null) {
             return 0;

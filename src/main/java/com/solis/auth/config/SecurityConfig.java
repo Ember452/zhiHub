@@ -46,10 +46,23 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 //给接口设置谁能访问
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health","actuator/info").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // 公开内容：首页 Feed 不需要登录
+                        .requestMatchers("/api/v1/knowposts/feed").permitAll()
+                        // 知文详情（公开已发布内容，非公开由服务层校验）
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/knowposts/detail/*").permitAll()
+                        // 知文详情页 RAG 问答（SSE 流式输出）允许匿名访问
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/knowposts/*/qa/stream").permitAll()
+                        .requestMatchers(
+                                "/api/v1/auth/send-code",
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/token/refresh",
+                                "/api/v1/auth/logout",
+                                "/api/v1/auth/password/reset"
 
-                        .anyRequest().authenticated()
-
+                ).permitAll()
+                .anyRequest().authenticated()
                 )
                 //OAuth2 资源服务器 = 专门负责「校验 JWT 令牌、保护接口」的后端服务
                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));
