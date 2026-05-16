@@ -121,7 +121,7 @@ oss:
   endpoint: oss-cn-hangzhou.aliyuncs.com
   access-key-id: LTAI5tR8aLeadSecYKfgjFEQ
   access-key-secret: OxToXi2GYCUvxsemsXAkzBMhNSgMOi
-  bucket: zhiguang121
+  bucket: zhihub
   public-domain: ${OSS_PUBLIC_DOMAIN:}
   folder: avatars
 
