@@ -1,6 +1,6 @@
 package com.solis.auth.api.dto;
 
-import com.tongji.auth.verification.VerificationScene;
+import com.solis.auth.verification.VerificationScene;
 
 /**
  * 发送验证码响应。

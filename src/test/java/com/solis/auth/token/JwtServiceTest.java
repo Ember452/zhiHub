@@ -2,6 +2,7 @@ package com.solis.auth.token;
 
 import com.solis.auth.config.AuthConfiguration;
 import com.solis.auth.config.AuthProperties;
+import com.solis.user.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;

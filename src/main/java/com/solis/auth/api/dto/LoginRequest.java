@@ -1,6 +1,6 @@
 package com.solis.auth.api.dto;
 
-import com.tongji.auth.model.IdentifierType;
+import com.solis.auth.model.IdentifierType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

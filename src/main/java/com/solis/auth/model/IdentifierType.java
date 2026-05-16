@@ -1,5 +1,8 @@
 package com.solis.auth.model;
 
+/**
+ * 登录标识，记录用户是用什么登录方式登录的
+ */
 public enum IdentifierType {
     PHONE,
     EMAIL;

@@ -1,9 +1,9 @@
 package com.solis.auth.api;
 
-import com.tongji.auth.api.dto.*;
-import com.tongji.auth.model.ClientInfo;
-import com.tongji.auth.service.AuthService;
-import com.tongji.auth.token.JwtService;
+import com.solis.auth.api.dto.*;
+import com.solis.auth.model.ClientInfo;
+import com.solis.auth.service.AuthService;
+import com.solis.auth.token.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -121,6 +121,7 @@ public class AuthController {
      *
      * @param jwt 当前请求绑定的 JWT 令牌（来自 `Authorization: Bearer`）。
      * @return 用户信息响应。
+     *  @ AuthenticationPrincipal 把合法的Token解析成JWT对象
      */
     @GetMapping("/me")
     public AuthUserResponse me(@AuthenticationPrincipal Jwt jwt) {
@@ -148,15 +149,20 @@ public class AuthController {
      * @param request HTTP 请求对象。
      * @return 客户端 IP。
      */
+    //TODO 看一下这个HttpServletRequest
     private String extractClientIp(HttpServletRequest request) {
+        //取真正的请求头
         String forwarded = request.getHeader("X-Forwarded-For");
+        //如果请求头不为空，获取第一个ID
         if (forwarded != null && !forwarded.isBlank()) {
             return forwarded.split(",")[0].trim();
         }
+        //如果上面没有，取这个
         String realIp = request.getHeader("X-Real-IP");
         if (realIp != null && !realIp.isBlank()) {
             return realIp.trim();
         }
+        //如果都没有，用原生方法取原生地址，可能是代理，网关
         return request.getRemoteAddr();
     }
 }
