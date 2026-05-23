@@ -119,6 +119,7 @@ public class JwtService {
      */
     public long extractUserId(Jwt jwt) {
         Object claim = jwt.getClaims().get(CLAIM_USER_ID);
+        //如果这个claim类型是不是Number类型，如果是，就转换成Number并赋值给number
         if (claim instanceof Number number) {
             return number.longValue();
         }

@@ -1,8 +1,8 @@
 spring:
   application:
-    name: zhiguang-auth
+    name: zhiHub-auth
   datasource:
-    url: jdbc:mysql://192.168.100.129:3306/zhiguang?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: jdbc:mysql://192.168.100.129:3306/zhiHub?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -60,7 +60,7 @@ spring:
     vectorstore:
       elasticsearch:
         initialize-schema: true
-        index-name: zhiguang-ai-index
+        index-name: zhihub-ai-index
         dimensions: 1536 # 一定要和上面的 dimensions 一致，不然会报错
   elasticsearch:
     uris: http://192.168.100.129:9200
@@ -72,7 +72,7 @@ canal:
   destination: example
   username: root
   password: 123456
-  filter: zhiguang\.outbox
+  filter: zhiHub\.outbox
   batchSize: 1000
   intervalMs: 1000
 
@@ -115,10 +115,10 @@ auth:
 logging:
   level:
     root: INFO
-    '[com.tongji]': DEBUG
+    '[com.solis]': DEBUG
 
 oss:
-  endpoint: oss-cn-hangzhou.aliyuncs.com
+  endpoint: oss-cn-beijing.aliyuncs.com
   access-key-id: LTAI5tR8aLeadSecYKfgjFEQ
   access-key-secret: OxToXi2GYCUvxsemsXAkzBMhNSgMOi
   bucket: zhihub

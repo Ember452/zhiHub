@@ -14,6 +14,7 @@ import com.solis.knowpost.id.SnowflakeIdGenerator;
 import com.solis.knowpost.mapper.KnowPostMapper;
 import com.solis.knowpost.model.KnowPost;
 import com.solis.knowpost.model.KnowPostDetailRow;
+import com.solis.knowpost.service.FeedCacheService;
 import com.solis.knowpost.service.KnowPostService;
 import com.solis.llm.rag.RagIndexService;
 import com.solis.relation.outbox.OutboxMapper;
@@ -53,6 +54,7 @@ public class KnowPostServiceImpl implements KnowPostService {
     private final ConcurrentHashMap<String, Object> singleFlight = new ConcurrentHashMap<>();
     private final RagIndexService ragIndexService;
     private final OutboxMapper outboxMapper;
+    private final FeedCacheService feedCacheService;
 
     // 手动编写构造器，Spring的@Qualifier直接标注在参数上（核心）
     public KnowPostServiceImpl(
@@ -66,7 +68,8 @@ public class KnowPostServiceImpl implements KnowPostService {
             @Qualifier("knowPostDetailCache") Cache<String, KnowPostDetailResponse> knowPostDetailCache,
             HotKeyDetector hotKey,
             RagIndexService ragIndexService,
-            OutboxMapper outboxMapper
+            OutboxMapper outboxMapper,
+            FeedCacheService feedCacheService
     ) {
         this.mapper = mapper;
         this.idGen = idGen;
@@ -79,6 +82,7 @@ public class KnowPostServiceImpl implements KnowPostService {
         this.hotKey = hotKey;
         this.ragIndexService = ragIndexService;
         this.outboxMapper = outboxMapper;
+        this.feedCacheService = feedCacheService;
     }
     /**
      * 创建草稿并返回新 ID。
@@ -102,15 +106,34 @@ public class KnowPostServiceImpl implements KnowPostService {
     }
 
     /**
-     * 确认内容上传（写入 objectKey、etag、大小、校验和，并生成公共 URL）。
+     * 确认内容上传（写入 objectKey、etag、大小、校验和，并生成公共 URL）
+     * 用户先创建草稿 → 数据库里已经有这条 KnowPost 了
+     * 用户上传图片 / 视频到 OSS
+     * 上传完，调用 confirmContent
+     * → 把文件信息补到草稿里，草稿变正式文章。
      */
     @Transactional
     public void confirmContent(long creatorId, long id, String objectKey, String etag, Long size, String sha256) {
         // 缓存双删
+        /**
+         * 为什么要先删除缓存：
+         * 时间线：
+         * T1: 线程 A 开始执行 confirmContent()
+         * T2: 线程 A 执行第一次 delete → 清除旧缓存 ✅（如果没有这个删除，B会把数据库中旧数据写到缓存，如果在高并发下，此时有多个读取了旧数据）
+         * T3: 线程 B 调用 getDetail() 查询同一条知文
+         * T4: 线程 B 发现缓存未命中 → 但此时数据库还未更新
+         * T5: 线程 B 等待...（或读取到旧数据，但不会写回缓存，因为 SingleFlight 机制）
+         * T6: 线程 A 执行 mapper.updateContent() → 数据库更新为【新数据】
+         * T7: 线程 A 执行第二次 delete → 清除可能在 T4-T6 期间产生的脏缓存 ✅
+         * T8: 线程 C 调用 getDetail() → 缓存未命中 → 从数据库读取【新数据】→ 写入缓存 ✅
+         * 防止并发污染：在数据库更新前清除旧缓存，避免并发请求在更新期间读取并回填旧数据
+         * 保证最终一致性：通过"更新前删除 + 更新后删除"的双删策略，确保缓存最终一定是最新数据
+         * 降低脏数据窗口期：将缓存不一致的时间窗口压缩到最小
+         */
         invalidateCache(id);
 
         KnowPost post = KnowPost.builder()
-                .id(id)
+                .id(id) //文章ID
                 .creatorId(creatorId)
                 .contentObjectKey(objectKey)
                 .contentEtag(etag)
@@ -222,7 +245,7 @@ public class KnowPostServiceImpl implements KnowPostService {
     }
 
     /**
-     * 设置可见性（权限）。
+     * 设置可见性（权限）
      */
     @Transactional
     public void updateVisibility(long creatorId, long id, String visible) {
@@ -556,6 +579,7 @@ public class KnowPostServiceImpl implements KnowPostService {
     }
 
     private void invalidateCache(long id) {
+        //TODO 这里没有删除Feed缓存，评估可行性
         String pageKey = "knowpost:detail:" + id + ":v" + DETAIL_LAYOUT_VER;
 
         redis.delete(pageKey);

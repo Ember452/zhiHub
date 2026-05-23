@@ -1,8 +1,8 @@
 package com.solis.llm.service.impl;
 
-import com.tongji.common.exception.BusinessException;
-import com.tongji.common.exception.ErrorCode;
-import com.tongji.llm.service.KnowPostDescriptionService;
+import com.solis.common.exception.BusinessException;
+import com.solis.common.exception.ErrorCode;
+import com.solis.llm.service.KnowPostDescriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.deepseek.DeepSeekChatOptions;
@@ -29,12 +29,12 @@ public class KnowPostDescriptionServiceImpl implements KnowPostDescriptionServic
         try {
             String result = chatClient
                     .prompt()
-                    .system(system)
-                    .user(user)
-                    .options(DeepSeekChatOptions.builder()
+                    .system(system) //设置系统指令
+                    .user(user) //设置用户问题
+                    .options(DeepSeekChatOptions.builder() // 设置模型参数
                             .model("deepseek-chat")
                             .temperature(0.8)
-                            .maxTokens(120)
+                            .maxTokens(120)  //最多生成120个词
                             .build())
                     .call()
                     .content();
@@ -48,6 +48,7 @@ public class KnowPostDescriptionServiceImpl implements KnowPostDescriptionServic
         if (text == null) {
             return "";
         }
+        //统一文本格式，调用Normalizer.normalize方法统一文本格式
         String t = Normalizer.normalize(text, Normalizer.Form.NFKC)
                 .replaceAll("\r\n|\r|\n", " ")
                 .replaceAll("\\s+", " ")
@@ -66,8 +67,11 @@ public class KnowPostDescriptionServiceImpl implements KnowPostDescriptionServic
         StringBuilder sb = new StringBuilder();
         int i = 0, added = 0;
         while (i < t.length() && added < limit) {
+            //一个完整的字符是一个codePointAt()
             int cp = t.codePointAt(i);
+            //把一个完整的字符添加进去
             sb.appendCodePoint(cp);
+
             i += Character.charCount(cp);
             added++;
         }

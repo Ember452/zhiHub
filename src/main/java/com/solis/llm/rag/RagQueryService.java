@@ -28,7 +28,9 @@ public class RagQueryService {
     private final RagIndexService indexService;
 
     /**
-     * 使用 WebFlux 返回回答内容的流。
+     * 使用 WebFlux 返回回答内容的流。流式返回
+     * topK:召回几段相关的内容，默认是5段
+     * maxTokens:模型输出最大长度，默认为 1024
      */
     public Flux<String> streamAnswerFlux(long postId, String question, int topK, int maxTokens) {
         // 轻量保障：如索引不存在或指纹未变更则跳过，否则重建
@@ -61,6 +63,9 @@ public class RagQueryService {
      * 语义检索上下文：
      * - 先进行宽召回（fetchK ≥ 3×topK，至少 20）提高召回率
      * - 再按 metadata.postId 做服务端过滤，避免跨帖子污染
+     * similaritySearch 语义相似检索:,根据提出的问题，在向量数据库中找到语义最相关的
+     * 1. 问题向量化
+     * 2. 拿着这个去向量库中找之前存的向量，排序返回
      */
     private List<String> searchContexts(String postId, String query, int topK) {
         int fetchK = Math.max(topK * 3, 20); // 宽召回：扩大初始检索集合

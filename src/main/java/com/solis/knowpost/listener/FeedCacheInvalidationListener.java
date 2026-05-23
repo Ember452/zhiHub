@@ -2,10 +2,10 @@ package com.solis.knowpost.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
-import com.tongji.counter.event.CounterEvent;
-import com.tongji.knowpost.api.dto.FeedItemResponse;
-import com.tongji.knowpost.api.dto.FeedPageResponse;
-import com.tongji.knowpost.model.KnowPost;
+import com.solis.counter.event.CounterEvent;
+import com.solis.knowpost.api.dto.FeedItemResponse;
+import com.solis.knowpost.api.dto.FeedPageResponse;
+import com.solis.knowpost.model.KnowPost;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -38,14 +38,14 @@ public class FeedCacheInvalidationListener {
     private final Cache<String, FeedPageResponse> feedPublicCache;
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
-    private final com.tongji.counter.service.UserCounterService userCounterService;
-    private final com.tongji.knowpost.mapper.KnowPostMapper knowPostMapper;
+    private final com.solis.counter.service.UserCounterService userCounterService;
+    private final com.solis.knowpost.mapper.KnowPostMapper knowPostMapper;
 
     public FeedCacheInvalidationListener(@Qualifier("feedPublicCache") Cache<String, FeedPageResponse> feedPublicCache,
                                          StringRedisTemplate redis,
                                          ObjectMapper objectMapper,
-                                         com.tongji.counter.service.UserCounterService userCounterService,
-                                         com.tongji.knowpost.mapper.KnowPostMapper knowPostMapper) {
+                                         com.solis.counter.service.UserCounterService userCounterService,
+                                         com.solis.knowpost.mapper.KnowPostMapper knowPostMapper) {
         this.feedPublicCache = feedPublicCache;
         this.redis = redis;
         this.objectMapper = objectMapper;
@@ -64,7 +64,7 @@ public class FeedCacheInvalidationListener {
      *   - 更新 Redis 页缓存（不携带用户态标志，保持 TTL）。
      * - 若某页面键在 Redis 未命中，则清理其索引引用，降低键空间噪音。
      */
-    @EventListener
+    @EventListener  //方法参数写什么事实类，EventListener就监听什么
     public void onCounterChanged(CounterEvent event) {
         if (!"knowpost".equals(event.getEntityType())) {
             return;
@@ -88,8 +88,9 @@ public class FeedCacheInvalidationListener {
                 }
             } catch (Exception ignored) {
             }
-
+            //当前所在的小时槽位
             long hourSlot = System.currentTimeMillis() / 3600000L;
+            //保持页面顺序，自动去重
             Set<String> keys = new LinkedHashSet<>();
             Set<String> cur = redis.opsForSet().members("feed:public:index:" + eid + ":" + hourSlot);
             if (cur != null) {
@@ -106,6 +107,7 @@ public class FeedCacheInvalidationListener {
 
             for (String key : keys) {
                 FeedPageResponse local = feedPublicCache.getIfPresent(key);
+                //如果本地缓存存在，更新本地缓存，当前用户自己看到的首页流，要有我有没有点赞
                 if (local != null) {
                     FeedPageResponse updatedLocal = adjustPageCounts(local, eid, metric, delta, true);
                     feedPublicCache.put(key, updatedLocal);
@@ -116,6 +118,7 @@ public class FeedCacheInvalidationListener {
                     try {
                         FeedPageResponse resp = objectMapper.readValue(cached, FeedPageResponse.class);
                         FeedPageResponse updated = adjustPageCounts(resp, eid, metric, delta, false);
+                        //把更新后的 Feed 数据存回 Redis，并且 保留原来的过期时间不变，不会重置缓存时长
                         writePageJsonKeepingTtl(key, updated);
                     } catch (Exception ignored) {}
                 } else {
@@ -133,6 +136,7 @@ public class FeedCacheInvalidationListener {
      * - preserveUserFlags=true：保留 liked/faved 标志用于本地缓存；
      * - preserveUserFlags=false：写回 Redis 页面 JSON 时不携带用户态标志；
      * - 返回新的页面响应快照。
+     * page:里面有基础信息和数据列表集合
      */
     private FeedPageResponse adjustPageCounts(FeedPageResponse page, String eid, String metric, int delta, boolean preserveUserFlags) {
         List<FeedItemResponse> items = new ArrayList<>(page.items().size());

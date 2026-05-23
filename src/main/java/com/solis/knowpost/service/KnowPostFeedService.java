@@ -1,6 +1,6 @@
 package com.solis.knowpost.service;
 
-import com.tongji.knowpost.api.dto.FeedPageResponse;
+import com.solis.knowpost.api.dto.FeedPageResponse;
 
 /**
  * 知文 Feed 业务接口。

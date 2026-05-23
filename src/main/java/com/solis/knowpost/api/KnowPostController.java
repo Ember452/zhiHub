@@ -34,6 +34,7 @@ public class KnowPostController {
 
     /**
      * 上传内容成功后回传确认，写入对象存储信息。
+     * 把刚才上传到 OSS 的文件信息，保存到数据库的帖子表里！(数据库里存文件地址，文件名，文件大小，文件 SHA256 值）
      */
     @PostMapping("/{id}/content/confirm")
     public ResponseEntity<Void> confirmContent(@PathVariable("id") long id,
@@ -103,7 +104,7 @@ public class KnowPostController {
     }
 
     /**
-     * 首页 Feed（公开、已发布）分页查询；默认每页 20，最大 50。
+     * 首页 Feed（公开、已发布）分页查询；默认每页 20，最大 50
      */
     @GetMapping("/feed")
     public FeedPageResponse feed(@RequestParam(value = "page", defaultValue = "1") int page,

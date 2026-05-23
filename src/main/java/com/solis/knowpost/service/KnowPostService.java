@@ -1,6 +1,6 @@
 package com.solis.knowpost.service;
 
-import com.tongji.knowpost.api.dto.KnowPostDetailResponse;
+import com.solis.knowpost.api.dto.KnowPostDetailResponse;
 
 import java.util.List;
 

@@ -31,7 +31,7 @@ public class RagIndexService {
     private final VectorStore vectorStore;
     // 数据访问：根据 postId 查询知文详情（含 contentUrl、指纹等）
     private final KnowPostMapper knowPostMapper;
-    // 拉取 Markdown 正文内容
+    // 拉取 Markdown 正文内容  RestTemplate；发送Http请求的工具类
     private final RestTemplate http = new RestTemplate();
     // 直接使用 ES 客户端做指纹判断和删除旧切片
     private final ElasticsearchClient es;
@@ -62,7 +62,8 @@ public class RagIndexService {
             return 0;
         }
 
-        // 指纹检测：如未变化则跳过重建
+        // 指纹检测：如未变化则跳过重建  etag:对象存储服务自动生成的文件标识，
+        // 用来判断文件是否变换，重复。sha256:文件的Hash值，确保文件没被篡改，完整，唯一
         String currentSha = row.getContentSha256();
         String currentEtag = row.getContentEtag();
         if (isUpToDate(postId, currentSha, currentEtag)) {
@@ -119,12 +120,20 @@ public class RagIndexService {
                 return false;
             }
             SearchResponse<Map> resp = es.search(s -> s
-                            .index(esProps.getIndex())
-                            .size(1)
+                            .index(esProps.getIndex()) //去哪个索引查
+                            .size(1) //只返回1条
                             .query(q -> q.term(t -> t
                                     .field("metadata.postId")
                                     .value(v -> v.stringValue(String.valueOf(postId))))),
                     Map.class);
+            //Hit<Map> 是什么？
+            // Hit = 一条 ES 搜索结果
+            // 里面包含：
+            // 文档数据 source() → 就是你存的内容
+            // 文档 ID
+            // 得分
+            //         <Map> = 数据用 Map 格式存储
+            // resp.hits()拿到命中结果的外层容器，第二个从总包裹里，拿出真正的文档列表
             List<Hit<Map>> hits = resp.hits().hits();
             if (hits == null || hits.isEmpty()) return false;
             Map source = hits.getFirst().source();
@@ -184,7 +193,9 @@ public class RagIndexService {
      */
     private List<String> chunkMarkdown(String text) {
         List<String> paras = new ArrayList<>();
+        //把文字按照换行符分割，匹配所有系统的换行符
         String[] lines = text.split("\r?\n");
+        //创建一个空的字符串拼接容器，用来高效拼接字符串
         StringBuilder buf = new StringBuilder();
         for (String line : lines) {
             boolean isHeader = line.startsWith("#");
@@ -202,6 +213,10 @@ public class RagIndexService {
     /**
      * 固定长度切片（每片 ≤ 800 字符），切片间 100 字符重叠：
      * - 兼顾检索召回与上下文连续性
+     * paras：一个文章按标题分页后的列表
+     * 返回一堆大小均匀、语义完整的小文本块（chunks）
+     * 模型处理更稳定
+     * 检索精度更高
      */
     private static List<String> getChunks(List<String> paras) {
         List<String> chunks = new ArrayList<>();

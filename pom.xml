@@ -14,8 +14,8 @@
     <groupId>org.example</groupId>
     <artifactId>zhiHub</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>zhiguang</name>
-    <description>ZhiGuang MVP authentication service</description>
+    <name>zhiHub</name>
+    <description>ZhiHub MVP authentication service</description>
 
     <properties>
         <java.version>21</java.version>

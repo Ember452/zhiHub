@@ -1,8 +1,8 @@
 package com.solis.knowpost.api;
 
-import com.tongji.knowpost.api.dto.DescriptionSuggestRequest;
-import com.tongji.knowpost.api.dto.DescriptionSuggestResponse;
-import com.tongji.llm.service.KnowPostDescriptionService;
+import com.solis.knowpost.api.dto.DescriptionSuggestRequest;
+import com.solis.knowpost.api.dto.DescriptionSuggestResponse;
+import com.solis.llm.service.KnowPostDescriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;

@@ -1,20 +1,20 @@
 package com.solis.storage;
 
-import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.PutObjectRequest;
+import com.aliyun.oss.HttpMethod;
+import com.aliyun.oss.model.GeneratePresignedUrlRequest;
+import com.solis.storage.config.OssProperties;
 import com.solis.common.exception.BusinessException;
 import com.solis.common.exception.ErrorCode;
-import com.solis.storage.config.OssProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.URL;
 import java.time.Instant;
+import java.net.URL;
 import java.util.Date;
 
 @Service
@@ -24,18 +24,15 @@ public class OssStorageService {
     private final OssProperties props;
 
     public String uploadAvatar(long userId, MultipartFile file) {
-        //确保配置有效
         ensureConfigured();
-        //拿到文件后缀
+
         String original = file.getOriginalFilename();
         String ext = "";
-        //拿到文件后缀
         if (original != null && original.contains(".")) {
             ext = original.substring(original.lastIndexOf('.'));
         }
-        //生成文件名
         String objectKey = props.getFolder() + "/" + userId + "-" + Instant.now().toEpochMilli() + ext;
-        //连接阿里云并上传
+
         OSS client = new OSSClientBuilder().build(props.getEndpoint(), props.getAccessKeyId(), props.getAccessKeySecret());
 
         try {
@@ -46,7 +43,7 @@ public class OssStorageService {
         } finally {
             client.shutdown();
         }
-        //返回可访问的URL
+
         return publicUrl(objectKey);
     }
 
@@ -60,8 +57,7 @@ public class OssStorageService {
     /**
      * 生成用于直传的 PUT 预签名 URL。
      * 客户端必须在上传时设置与签名一致的 Content-Type。
-     * 生成一个【临时的、有权限的、会过期】的上传链接（PUT 签名 URL），直接返回给前端，
-     * 让前端自己上传文件到阿里云 OSS，后端不接收文件、不中转文件。
+     *
      * @param objectKey 目标对象键
      * @param contentType 上传内容类型（如 text/markdown, image/png）
      * @param expiresInSeconds 有效期秒数（建议 300-900）

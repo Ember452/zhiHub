@@ -3,13 +3,13 @@ package com.solis.knowpost.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
-import com.tongji.cache.hotkey.HotKeyDetector;
-import com.tongji.counter.service.CounterService;
-import com.tongji.knowpost.api.dto.FeedItemResponse;
-import com.tongji.knowpost.api.dto.FeedPageResponse;
-import com.tongji.knowpost.mapper.KnowPostMapper;
-import com.tongji.knowpost.model.KnowPostFeedRow;
-import com.tongji.knowpost.service.KnowPostFeedService;
+import com.solis.cache.hotkey.HotKeyDetector;
+import com.solis.counter.service.CounterService;
+import com.solis.knowpost.api.dto.FeedItemResponse;
+import com.solis.knowpost.api.dto.FeedPageResponse;
+import com.solis.knowpost.mapper.KnowPostMapper;
+import com.solis.knowpost.model.KnowPostFeedRow;
+import com.solis.knowpost.service.KnowPostFeedService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,6 +70,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
 
     /**
      * 生成公共 Feed 页面的缓存 Key（包含分页与布局版本）。
+     * LAYOUY_VER 缓存版本号：后续可以通过修改这个批量让缓存失效
      * @param page 页码（1 起）
      * @param size 每页大小
      * @return Redis/Page 缓存的 Key
@@ -102,7 +103,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         FeedPageResponse local = feedPublicCache.getIfPresent(localPageKey);
 
         if (local != null && local.items() != null) {
-            // 对返回列表中的每个条目进行热度统计
+            // 对返回列表中的每个条目进行热度统计--并试图延长TTL
             for (FeedItemResponse item : local.items()) {
                 recordItemHotKey(item.id());
             }
@@ -132,6 +133,10 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         // 所有请求同时打到数据库（造成 缓存击穿 ），这里使用了锁
         // 单航班机制：以 idsKey 作为“航班号”
         // 并发下同一页只允许一个请求回源数据库，其余在锁内优先重查缓存，避免击穿惊群
+        // 这是本地 JVM 内存锁（单机锁），专门用来做合并重复请求、防止缓存击穿、防止回源雪崩。
+        // 作用：同一个 key，只让一个线程去回源查库，其他线程等待。
+        // 自动去重、合并请求
+        // 性能极高.无Redis网络IO，无锁竞争损耗，高并发神器
         Object lock = singleFlight.computeIfAbsent(idsKey, k -> new Object());
         synchronized (lock) {
             // 重查 L2 缓存，避免重复回源
@@ -163,6 +168,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             FeedPageResponse respForCache = new FeedPageResponse(items, safePage, safeSize, hasMore);
             // 片段缓存（ids/item/count）TTL 更长并加入随机抖动，降低同一时刻大量过期
             int baseTtl = 60;
+            //使用高并发线程安全工具，生成随机数0-29
             int jitter = ThreadLocalRandom.current().nextInt(30);
             Duration frTtl = Duration.ofSeconds(baseTtl + jitter);
 
@@ -211,6 +217,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         List<FeedItemResponse> out = new ArrayList<>(base.size());
 
         for (FeedItemResponse it : base) {
+            //直接从位图查询
             boolean liked = uid != null && counterService.isLiked("knowpost", it.id(), uid);
             boolean faved = uid != null && counterService.isFaved("knowpost", it.id(), uid);
             out.add(new FeedItemResponse(
@@ -237,7 +244,8 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
      * - idsKey：列表 ID 顺序
      * - itemKey：每个条目基础信息
      * - countKey：点赞/收藏计数
-     * 若缺片段则回源修补并写回软缓存。
+     * 若缺片段则回源修补并写回软缓存。回源就是：去数据库查 → 重新把所有缓存写回 Redis → 下次就能走缓存了。
+     * 这叫熔断式缓存策略：不允许半缓存、脏缓存
      * @param idsKey Redis 列表 Key
      * @param hasMoreKey Redis 软缓存 hasMore Key
      * @param page 页码
@@ -260,7 +268,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         }
         // 批量获取知文 元数据
         List<String> itemJsons = redis.opsForValue().multiGet(itemKeys);
-
+        //存公共缓存L1
         List<FeedItemResponse> items = new ArrayList<>(idList.size());
 
         for (int i = 0; i < idList.size(); i++) {
@@ -276,7 +284,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
                 return null;
             }
         }
-
+        //用户个性缓存L2
         List<FeedItemResponse> enriched = new ArrayList<>(idList.size());
         for (int i = 0; i < idList.size(); i++) {
             FeedItemResponse base = items.get(i);
@@ -338,6 +346,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
 
         if (!idVals.isEmpty()) {
             redis.opsForList().leftPushAll(idsKey, idVals);
+            //redis.expire设置过期时间
             redis.expire(idsKey, frTtl);
             // 软缓存 hasMore：仅在满页时缓存 true，TTL 很短
             if (idVals.size() == size && hasMore) {
@@ -348,6 +357,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         }
 
         // 页面键集合索引，用于按页面维度批量失效与清理（即使没有 Redis 整页缓存，依然保留反向索引用于本地缓存通知或其他用途）
+        //pageKey:"feed:public:" + size + ":" + page + ":v" + LAYOUT_VER;
         redis.opsForSet().add("feed:public:pages", pageKey);
 
         for (FeedItemResponse it : items) {
@@ -402,6 +412,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         if (cached != null) {
             try {
                 FeedPageResponse cachedResp = objectMapper.readValue(cached, FeedPageResponse.class);
+                //如果有个人计数的相关内容
                 boolean hasCounts = cachedResp.items() != null && cachedResp.items().stream()
                         .allMatch(it -> it.likeCount() != null && it.favoriteCount() != null);
                 if (hasCounts) {
@@ -417,12 +428,14 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         }
 
         int offset = (safePage - 1) * safeSize;
+        //从这个偏移量开始，取safeSize+1个
         List<KnowPostFeedRow> rows = mapper.listMyPublished(userId, safeSize + 1, offset);
         boolean hasMore = rows.size() > safeSize;
         if (hasMore) rows = rows.subList(0, safeSize);
 
         List<FeedItemResponse> items = mapRowsToItems(rows, userId, true);
 
+        //拿到一页的缓存
         FeedPageResponse resp = new FeedPageResponse(items, safePage, safeSize, hasMore);
         try {
             String json = objectMapper.writeValueAsString(resp);
